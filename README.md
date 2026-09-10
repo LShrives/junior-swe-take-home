@@ -72,5 +72,30 @@ Run tests with:
 npm test
 ```
 
+Run tests with a coverage report (fails below 100% on `apiClient.js` and
+`borrowingCalculator.js`):
+```
+npm run coverage
+```
+
+## Implementation notes
+
+The code is split into three files:
+
+| File | Responsibility |
+| --- | --- |
+| `apiClient.js` | `TaxHemApiClient` — calls the development API for Tax and HEM values, adds the Bearer token, and turns failures into descriptive errors. |
+| `borrowingCalculator.js` | `BorrowingCalculator` — the borrowing-power maths. Takes a Tax/HEM client and optional rate configuration in its constructor; contains no network code itself. |
+| `cli.js` | The interactive terminal front-end (`npm start`). Wires a real `TaxHemApiClient` into a `BorrowingCalculator`. |
+
+`BorrowingCalculator` receives its API client as a constructor argument, so the
+tests exercise it with a fake client, and `TaxHemApiClient` accepts a `fetchFn`
+argument so its tests run without a live server. Interest-rate policy (baseline
+rate, assessment buffer, loan term) lives in the `BorrowingCalculator`
+constructor rather than the CLI.
+
+Coverage is measured on the two logic files. `cli.js` (terminal I/O wiring) and
+`server.js` (the provided fixture) are excluded in `.c8rc.json`.
+
 
 

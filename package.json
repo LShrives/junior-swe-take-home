@@ -1,10 +1,15 @@
 {
   "devDependencies": {
-    "mocha": "^11.7.0"
+    "c8": "^10.1.3",
+    "mocha": "^12.0.0"
   },
   "scripts": {
     "api": "node server.js",
     "test": "mocha test_calculator.js",
-    "start": "node borrowingCalculator.js"
+    "coverage": "c8 mocha test_calculator.js",
+    "start": "node cli.js"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

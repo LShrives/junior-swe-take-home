@@ -1,104 +1,96 @@
 /**
- * Borrowing Power Calculator
- * 
- * Gen's incomplete prototype. 
- * This currently calculates what a user can borrow over 30 years.
- * Currently this code uses placeholder methods for Tax and HEM values. 
- * 
- * TODO: Refactor the code to pull Tax and HEM values from an API call.
- * A server.js has been provided to supply these values.
+ * borrowingCalculator.js
+ *
+ * Calculates how much a borrower can borrow over the loan term, based on their
+ * income, dependents, declared expenses and credit card limits.
+ *
+ * Tax and HEM (Household Expenditure Measure) figures are supplied by an
+ * injected API client (see apiClient.js), so this class holds no network code
+ * itself and can be unit tested with a fake client.
  */
 
-// Global constant for mortgage simulation
-const LOAN_TERM_MONTHS = 360; // 30 Years
-const INTEREST_RATE = 7.0; // 7.0% baseline interest rate
-const ASSESSMENT_RATE_BUFFER = 3.0; // 3.0% buffer added to interest rates
+const DEFAULT_INTEREST_RATE = 7.0;        // baseline interest rate, percent
+const DEFAULT_ASSESSMENT_BUFFER = 3.0;    // buffer added on top for loan assessment, percent
+const DEFAULT_LOAN_TERM_MONTHS = 360;     // 30 years
+const CREDIT_CARD_LIABILITY_RATE = 0.03;  // monthly liability assumed as 3% of total limits
 
-// Legacy placeholder functions to replace with API calls
-function getTax(income) {
-    // REPLACE THIS
-    // Write your TAX API call code here.
-    return Math.round(income * 0.25);
-}
-
-function getHEM(income, dependents) {
-    // REPLACE THIS
-    // Write your HEM API call code here.
-    return 2000 + (dependents * 400);
-}
-
-/**
- * Calculates the total borrowing power amount and the monthly repayment configuration
- */
-function calculateBorrowingPower(income, dependents, expenses, creditLimits, annualAssessmentRate) {
-    // 1. Calculate Net Monthly Income after tax deductions
-    const annualTax = getTax(income);
-    const netMonthlyIncome = (income - annualTax) / 12;
-
-    // 2. Determine living expenses (User declared expenses vs HEM baseline, whichever is higher)
-    const baselineHEM = getHEM(income, dependents);
-    const totalLivingExpenses = Math.max(expenses, baselineHEM);
-
-    // 3. Calculate credit card liability (~3% of total limits)
-    const creditCardLiability = creditLimits * 0.03;
-
-    // 4. Calculate monthly repayment capacity
-    const maxMonthlyRepayment = netMonthlyIncome - totalLivingExpenses - creditCardLiability;
-
-    // Return early if user cannot afford a loan at all
-    if (maxMonthlyRepayment <= 0) {
-        return { maxLoanAmount: 0, monthlyRepayment: 0 };
+class BorrowingCalculator {
+    /**
+     * @param {{ getTax: Function, getHEM: Function }} apiClient
+     * @param {object} [options]
+     * @param {number} [options.interestRate]     Baseline interest rate, percent.
+     * @param {number} [options.assessmentBuffer] Buffer added for assessment, percent.
+     * @param {number} [options.loanTermMonths]   Loan term in months.
+     */
+    constructor(apiClient, {
+        interestRate = DEFAULT_INTEREST_RATE,
+        assessmentBuffer = DEFAULT_ASSESSMENT_BUFFER,
+        loanTermMonths = DEFAULT_LOAN_TERM_MONTHS,
+    } = {}) {
+        this.api = apiClient;
+        this.interestRate = interestRate;
+        this.assessmentBuffer = assessmentBuffer;
+        this.loanTermMonths = loanTermMonths;
     }
 
-    // 5. Calculate the monthly interest rate
-    const monthlyRate = (annualAssessmentRate / 100) / 12;
+    /** Interest rate used to assess the loan: baseline plus the safety buffer. */
+    get assessmentRate() {
+        return this.interestRate + this.assessmentBuffer;
+    }
 
-    // 6. Calculate maximum borrowing power using the following formula:
-    // P = M * (1 - (1 + R)^-N) / R
-    const maxLoanAmount = maxMonthlyRepayment * ((1 - Math.pow(1 + monthlyRate, - LOAN_TERM_MONTHS)) / monthlyRate);
+    /**
+     * @param {number} income        Gross annual income.
+     * @param {number} dependents    Number of dependents.
+     * @param {number} expenses      Declared monthly living expenses.
+     * @param {number} creditLimits  Total credit card limits.
+     * @returns {Promise<{ maxLoanAmount: number, monthlyRepayment: number }>}
+     */
+    async calculateBorrowingPower(income, dependents, expenses, creditLimits) {
+        this.#assertNonNegativeNumbers({ income, dependents, expenses, creditLimits });
 
-    return {
-        maxLoanAmount: Number(maxLoanAmount.toFixed(2)),
-        monthlyRepayment: Number(maxMonthlyRepayment.toFixed(2))
-    };
+        // Tax and HEM both depend only on the inputs, not on each other, so
+        // request them together.
+        const [annualTax, baselineHEM] = await Promise.all([
+            this.api.getTax(income),
+            this.api.getHEM(income, dependents),
+        ]);
+
+        // 1. Net monthly income after tax.
+        const netMonthlyIncome = (income - annualTax) / 12;
+
+        // 2. Living expenses: declared amount or HEM baseline, whichever is higher.
+        const totalLivingExpenses = Math.max(expenses, baselineHEM);
+
+        // 3. Assumed monthly credit card liability.
+        const creditCardLiability = creditLimits * CREDIT_CARD_LIABILITY_RATE;
+
+        // 4. Monthly amount available for loan repayments.
+        const maxMonthlyRepayment = netMonthlyIncome - totalLivingExpenses - creditCardLiability;
+
+        // Nothing left to service a loan.
+        if (maxMonthlyRepayment <= 0) {
+            return { maxLoanAmount: 0, monthlyRepayment: 0 };
+        }
+
+        // 5. Present value of an annuity: P = M * (1 - (1 + R)^-N) / R
+        const monthlyRate = (this.assessmentRate / 100) / 12;
+        const maxLoanAmount =
+            maxMonthlyRepayment * ((1 - Math.pow(1 + monthlyRate, -this.loanTermMonths)) / monthlyRate);
+
+        return {
+            maxLoanAmount: Number(maxLoanAmount.toFixed(2)),
+            monthlyRepayment: Number(maxMonthlyRepayment.toFixed(2)),
+        };
+    }
+
+    /** Throws if any supplied value is not a finite, non-negative number. */
+    #assertNonNegativeNumbers(values) {
+        for (const [name, value] of Object.entries(values)) {
+            if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+                throw new Error(`${name} must be a non-negative number`);
+            }
+        }
+    }
 }
 
-function runConsoleMode() {
-    const readline = require('readline');
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-
-    console.log("Mortgage Borrowing Power Calculator");
-    console.log("===================================");
-
-    rl.question("Gross Annual Income: $", (income) => {
-        rl.question("Number of Dependents: ", (dependents) => {
-            rl.question("Declared Monthly Expenses: $", (expenses) => {
-                rl.question("Total Credit Card Limits: $", (creditLimits) => {
-                    
-                    // Banks assess loans using base rate + buffer for safety
-                    const assessmentRate = INTEREST_RATE + ASSESSMENT_RATE_BUFFER;
-
-                    const result = calculateBorrowingPower(
-                        parseFloat(income),
-                        parseInt(dependents),
-                        parseFloat(expenses),
-                        parseFloat(creditLimits),
-                        assessmentRate
-                    );
-
-                    console.log("\n--- Calculation Summary ---");
-                    console.log(`Maximum Borrowing Power at ${INTEREST_RATE}%: $${result.maxLoanAmount.toLocaleString()}`);
-                    console.log(`Assumed Monthly Mortgage Repayment: $${result.monthlyRepayment.toLocaleString()} over 30 years`);
-                    
-                    rl.close();
-                });
-            });
-        });
-    });
-}
-
-if (require.main === module) {
-    runConsoleMode();
-}
-
-module.exports = { calculateBorrowingPower };
+module.exports = { BorrowingCalculator };
