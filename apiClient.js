@@ -10,6 +10,15 @@ const DEFAULT_BASE_URL = "http://localhost:3000";
 // Development Personal Access Token, published in server.md. Not a real secret.
 const DEV_PAT = "pat_abcdefghijklmnopqrstuvwxyz0123456789";
 
+class APIClient {
+    // general client for sending API requests
+    
+}
+
+class serverRequestAPIClient {
+// to do
+
+}
 class TaxHemApiClient {
     /**
      * @param {object} [options]

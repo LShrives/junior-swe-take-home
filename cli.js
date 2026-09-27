@@ -15,11 +15,15 @@ function invokeCLICommand(command,rl, calculator) {
         mortgageBorrowingPowerCalculator(rl, calculator);
     }
     if (command === 2) {
-        verifyCLICommandInput(command);
+        getServerRequestStats(rl, calculator);
         rl.close()
     }
-    
-    
+}
+function getServerRequestStats() {
+// gets the number of API requests made to server, returns to stdout
+// placeholder
+
+
 }
 function runConsoleMode() {
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -27,7 +31,6 @@ function runConsoleMode() {
 
     console.log("Select command.")
     console.log("===================================");
-        
     console.log("1. Mortgage Borrowing Power Calculator");
     console.log("2. Server requests count query");
     console.log("===================================");
@@ -42,7 +45,6 @@ function askForCommand(rl, calculator) {
                 askForCommand(rl,calculator)
             return
         };
-
             invokeCLICommand (parsedInput, rl, calculator)
     });
 }
@@ -58,7 +60,6 @@ function verifyCLICommandInput(command) {
 }
 
 function mortgageBorrowingPowerCalculator(rl, calculator) {
-
 
     console.log("Mortgage Borrowing Power Calculator");
     console.log("===================================");
