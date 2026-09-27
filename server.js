@@ -126,6 +126,15 @@ function handleHem(params, res) {
     });
 }
 
+function cacheRequestLog(req, res, params) {
+    // Fingerprint the request for caching purposes
+    const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+    const fingerprint = `${req.method}:${url.pathname}:${JSON.stringify(Object.fromEntries(params))}`;
+    // Here you would typically store the fingerprint in a cache or database
+}
+
+
+
 const server = http.createServer((req, res) => {
     if (!authenticate(req, res)) return;
 
