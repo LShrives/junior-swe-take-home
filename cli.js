@@ -6,17 +6,17 @@
  */
 
 const readline = require("readline");
-const { APIClient } = require("./apiClient");
-const { TaxHemApiClient } = require("./apiClient");
+const { ServerStatsRequestAPIClient, TaxHemApiClient } = require("./apiClient");
 const { BorrowingCalculator } = require("./borrowingCalculator");
-const { error } = require("console");
 
 function getServerRequestStats() {
 // gets the number of API requests made to server, returns to stdout
-// placeholder
-const APIreq = new APIClient (new )
+const client = new (ServerStatsRequestAPIClient);
+
+console.log(client.getStats.data)
 
 }
+
 function runConsoleMode() {
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 

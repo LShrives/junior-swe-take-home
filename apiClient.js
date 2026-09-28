@@ -68,11 +68,11 @@ class APIClient {
     }
 }
 
-class serverStatsRequestAPIClient extends APIClient {
+class ServerStatsRequestAPIClient extends APIClient {
 // to test
     async getStats() {
         const data = await this.request("/api/stats");
-        return data.stats
+        return data
     }
 }
 class TaxHemApiClient extends APIClient {
@@ -100,6 +100,4 @@ class TaxHemApiClient extends APIClient {
 
 }
 
-module.exports = { TaxHemApiClient };
-module.exports = { APIClient };
-module.exports = { serverStatsRequestAPIClient }
+module.exports = { TaxHemApiClient, ServerStatsRequestAPIClient, APIClient }

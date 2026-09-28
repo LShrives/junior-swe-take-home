@@ -6,7 +6,7 @@
  */
 
 const http = require("http");
-
+let countAPIrequests = 0
 const PORT = 3000;
 const VALID_PAT = "pat_abcdefghijklmnopqrstuvwxyz0123456789";
 
@@ -126,13 +126,11 @@ function handleHem(params, res) {
     });
 }
 
-function cacheRequestLog(req, res, params) {
-    // Fingerprint the request for caching purposes
-    const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-    const fingerprint = `${req.method}:${url.pathname}:${JSON.stringify(Object.fromEntries(params))}`;
-    // Here you would typically store the fingerprint in a cache or database
+function getStats (params,res) {
+    return sendJSON(res, 200, {
+        requestCount: countAPIrequests
+    })
 }
-
 
 
 const server = http.createServer((req, res) => {
@@ -144,21 +142,27 @@ const server = http.createServer((req, res) => {
 
     const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
     const params = url.searchParams;
-
-    console.log("==============================");
-    console.log("Request:");
-    console.table({ method: req.method, path: url.pathname });
-    console.log("Headers:");
-    console.table(req.headers);
-    console.log("Params:");
-    console.table(Object.fromEntries(params));
-    console.log("==============================");
-
-    if (url.pathname === "/api/tax") {return handleTax(params, res);}
-    if (url.pathname === "/api/hem") {return handleHem(params, res);}
-
+    if (url.pathname === "/api/tax" || url.pathname === "/api/hem") {
+        console.log("==============================");
+        console.log("Request:");
+        console.table({ method: req.method, path: url.pathname });
+        console.log("Headers:");
+        console.table(req.headers);
+        console.log("Params:");
+        console.table(Object.fromEntries(params));
+        console.log("==============================");
+        countAPIrequests = countAPIrequests++
+        if (url.pathname === "/api/tax") {return handleTax(params, res);}
+        if (url.pathname === "/api/hem") {return handleHem(params, res);}
+    };
+    
+    if (url.pathname === "/api/stats") {
+        return getStats(params,res)
+    } 
+    else {
     return errorJSON(res, 404, "Not Found", "The requested endpoint does not exist.");
-});
+}
+);
 
 
 server.listen(PORT, () => {
