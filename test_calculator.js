@@ -7,7 +7,7 @@
 
 const assert = require("assert");
 const { BorrowingCalculator } = require("./borrowingCalculator");
-const { TaxHemApiClient } = require("./apiClient");
+const { APIClient, ServerStatsRequestAPIClient, TaxHemApiClient } = require("./apiClient");
 
 const DEV_PAT = "pat_abcdefghijklmnopqrstuvwxyz0123456789";
 
@@ -223,5 +223,95 @@ describe("TaxHemApiClient", () => {
         const client = new TaxHemApiClient({ fetchFn });
 
         await assert.rejects(client.getTax(120000), /Request to \/api\/tax failed: ECONNREFUSED/);
+    });
+});
+
+describe("APIClient", () => {
+
+    it("sends no query string when request() is called without params", async () => {
+        const { fetchFn, calls } = recordingFetch(() => jsonResponse(200, { ok: true }));
+        const client = new APIClient({ fetchFn });
+
+        await client.request("/api/anything");
+
+        assert.strictEqual(calls[0].url.href, "http://localhost:3000/api/anything");
+        assert.strictEqual(calls[0].url.search, "");
+    });
+
+    it("encodes every param and returns the parsed JSON body", async () => {
+        const { fetchFn, calls } = recordingFetch(() => jsonResponse(200, { value: 42 }));
+        const client = new APIClient({ fetchFn });
+
+        const data = await client.request("/api/anything", { a: 1, b: "two words" });
+
+        assert.deepStrictEqual(data, { value: 42 });
+        assert.strictEqual(calls[0].url.searchParams.get("a"), "1");
+        assert.strictEqual(calls[0].url.searchParams.get("b"), "two words");
+    });
+
+    it("is the base class of both endpoint clients", () => {
+        assert.ok(new TaxHemApiClient() instanceof APIClient);
+        assert.ok(new ServerStatsRequestAPIClient() instanceof APIClient);
+    });
+});
+
+describe("ServerStatsRequestAPIClient", () => {
+
+    it("uses the documented defaults when constructed with no options", () => {
+        const client = new ServerStatsRequestAPIClient();
+
+        assert.strictEqual(client.baseUrl, "http://localhost:3000");
+        assert.strictEqual(client.token, DEV_PAT);
+        assert.strictEqual(client.fetchFn, fetch);
+    });
+
+    it("requests /api/stats with no params and the bearer token", async () => {
+        const { fetchFn, calls } = recordingFetch(() => jsonResponse(200, { requestCount: 5 }));
+        const client = new ServerStatsRequestAPIClient({ fetchFn });
+
+        await client.getStats();
+
+        assert.strictEqual(calls[0].url.href, "http://localhost:3000/api/stats");
+        assert.strictEqual(calls[0].options.headers.Authorization, `Bearer ${DEV_PAT}`);
+    });
+
+    it("returns the whole response body", async () => {
+        const { fetchFn } = recordingFetch(() => jsonResponse(200, { requestCount: 5 }));
+        const client = new ServerStatsRequestAPIClient({ fetchFn });
+
+        const stats = await client.getStats();
+
+        assert.deepStrictEqual(stats, { requestCount: 5 });
+    });
+
+    it("honours a custom base URL and token", async () => {
+        const { fetchFn, calls } = recordingFetch(() => jsonResponse(200, { requestCount: 0 }));
+        const client = new ServerStatsRequestAPIClient({
+            baseUrl: "http://example.test:9999",
+            token: "tok_custom",
+            fetchFn,
+        });
+
+        await client.getStats();
+
+        assert.strictEqual(calls[0].url.host, "example.test:9999");
+        assert.strictEqual(calls[0].options.headers.Authorization, "Bearer tok_custom");
+    });
+
+    it("throws with the server's message on a non-2xx response", async () => {
+        const { fetchFn } = recordingFetch(() => jsonResponse(401, {
+            error: "Invalid Personal Access Token",
+            message: "The provided token is invalid.",
+        }));
+        const client = new ServerStatsRequestAPIClient({ fetchFn });
+
+        await assert.rejects(client.getStats(), /API \/api\/stats responded 401: The provided token is invalid\./);
+    });
+
+    it("wraps a network failure in a descriptive error", async () => {
+        const { fetchFn } = recordingFetch(() => { throw new Error("ECONNREFUSED"); });
+        const client = new ServerStatsRequestAPIClient({ fetchFn });
+
+        await assert.rejects(client.getStats(), /Request to \/api\/stats failed: ECONNREFUSED/);
     });
 });
