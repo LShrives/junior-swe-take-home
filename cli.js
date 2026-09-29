@@ -10,11 +10,12 @@ const { ServerStatsRequestAPIClient, TaxHemApiClient } = require("./apiClient");
 const { BorrowingCalculator } = require("./borrowingCalculator");
 
 async function getServerRequestStats(rl) {
-// gets the number of API requests made to server, returns to stdout
-const client = new ServerStatsRequestAPIClient();
+    // gets the number of API requests made to server, returns to stdout
+    const client = new ServerStatsRequestAPIClient();
     try {
-        await serverStats === client.getStats().data.requestCount
-        console.log (serverStats.requestCount)
+        const serverStats = await client.getStats();
+        console.log("\n--- Count of total API requests sent to server ---");
+        console.log(serverStats.requestCount);
     }
     catch (error) {
         console.error(`\nCould not retrieve count of API requests to server: ${error.message}`);
@@ -31,11 +32,11 @@ function runConsoleMode() {
     console.log("1. Mortgage Borrowing Power Calculator");
     console.log("2. Server requests count query");
     console.log("===================================");
-    askForCommand(rl)    
+    askForCommand(rl)
 }
 
 function mortgageBorrowingPowerCalculator(rl) {
-const calculator = new BorrowingCalculator(new TaxHemApiClient());
+    const calculator = new BorrowingCalculator(new TaxHemApiClient());
     console.log("Mortgage Borrowing Power Calculator");
     console.log("===================================");
 
@@ -74,17 +75,17 @@ const calculator = new BorrowingCalculator(new TaxHemApiClient());
 
 function askForCommand(rl) {
     rl.question("Command: ", (input) => {
-            let parsedInput = parseInt(input,10);
-            let validInput = verifyCLICommandInput(parsedInput);
-            if (validInput === false) {
-                askForCommand(rl)
+        let parsedInput = parseInt(input, 10);
+        let validInput = verifyCLICommandInput(parsedInput);
+        if (validInput === false) {
+            askForCommand(rl)
             return
         };
-            invokeCLICommand (parsedInput, rl)
+        invokeCLICommand(parsedInput, rl)
     });
 }
 function invokeCLICommand(command, rl) {
-    if (command === 1 ) {
+    if (command === 1) {
         mortgageBorrowingPowerCalculator(rl);
     }
     if (command === 2) {
