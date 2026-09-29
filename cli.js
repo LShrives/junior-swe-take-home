@@ -9,12 +9,18 @@ const readline = require("readline");
 const { ServerStatsRequestAPIClient, TaxHemApiClient } = require("./apiClient");
 const { BorrowingCalculator } = require("./borrowingCalculator");
 
-function getServerRequestStats() {
+async function getServerRequestStats(rl) {
 // gets the number of API requests made to server, returns to stdout
-const client = new (ServerStatsRequestAPIClient);
-
-console.log(client.getStats.data)
-
+const client = new ServerStatsRequestAPIClient();
+    try {
+        await serverStats === client.getStats().data.requestCount
+        console.log (serverStats.requestCount)
+    }
+    catch (error) {
+        console.error(`\nCould not retrieve count of API requests to server: ${error.message}`);
+    } finally {
+        rl.close();
+    }
 }
 
 function runConsoleMode() {
@@ -83,7 +89,6 @@ function invokeCLICommand(command, rl) {
     }
     if (command === 2) {
         getServerRequestStats(rl);
-        rl.close()
     }
 }
 function verifyCLICommandInput(command) {

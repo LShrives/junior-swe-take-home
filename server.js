@@ -11,9 +11,9 @@ const PORT = 3000;
 const VALID_PAT = "pat_abcdefghijklmnopqrstuvwxyz0123456789";
 
 const HEM_MATRIX = {
-    low:    { 0: 1600, 1: 2100, 2: 2500, 3: 2800 },
+    low: { 0: 1600, 1: 2100, 2: 2500, 3: 2800 },
     medium: { 0: 2200, 1: 2700, 2: 3100, 3: 3500 },
-    high:   { 0: 2600, 1: 3100, 2: 3600, 3: 4100 }
+    high: { 0: 2600, 1: 3100, 2: 3600, 3: 4100 }
 };
 
 
@@ -126,7 +126,7 @@ function handleHem(params, res) {
     });
 }
 
-function getStats (params,res) {
+function handleStats(res) {
     return sendJSON(res, 200, {
         requestCount: countAPIrequests
     })
@@ -151,18 +151,18 @@ const server = http.createServer((req, res) => {
         console.log("Params:");
         console.table(Object.fromEntries(params));
         console.log("==============================");
-        countAPIrequests = countAPIrequests++
-        if (url.pathname === "/api/tax") {return handleTax(params, res);}
-        if (url.pathname === "/api/hem") {return handleHem(params, res);}
-    };
-    
+        ++countAPIrequests
+        if (url.pathname === "/api/tax") { return handleTax(params, res); }
+        if (url.pathname === "/api/hem") { return handleHem(params, res); }
+    }
+
     if (url.pathname === "/api/stats") {
-        return getStats(params,res)
-    } 
+        return handleStats(res)
+    }
     else {
-    return errorJSON(res, 404, "Not Found", "The requested endpoint does not exist.");
-}
-);
+        return errorJSON(res, 404, "Not Found", "The requested endpoint does not exist.");
+    }
+});
 
 
 server.listen(PORT, () => {

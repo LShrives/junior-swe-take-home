@@ -31,7 +31,7 @@ class APIClient {
      * Throws a descriptive Error if the request cannot be made or the server
      * responds with a non-2xx status.
      */
-    async request(path, params) {
+    async request(path, params = {}) {
         const url = new URL(path, this.baseUrl);
         for (const [key, value] of Object.entries(params)) {
             url.searchParams.set(key, value);
@@ -69,7 +69,6 @@ class APIClient {
 }
 
 class ServerStatsRequestAPIClient extends APIClient {
-// to test
     async getStats() {
         const data = await this.request("/api/stats");
         return data
